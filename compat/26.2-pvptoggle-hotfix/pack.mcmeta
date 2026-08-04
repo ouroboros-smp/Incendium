@@ -1,0 +1,8 @@
+{
+  "pack": {
+    "id": "ouroboros_incendium_26_2_pvptoggle_hotfix",
+    "min_format": [107, 1],
+    "max_format": [107, 1],
+    "description": "Ouroboros Incendium 5.5.0 / PvP Toggle combat hotfix"
+  }
+}

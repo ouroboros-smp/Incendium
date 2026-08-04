@@ -1,0 +1,15 @@
+{
+  "parent": "incendium:technical/root",
+  "criteria": {
+    "requirement": {
+      "trigger": "minecraft:using_item",
+      "conditions": {
+        "item": {
+          "predicates": {
+            "minecraft:custom_data": "{incendium:{item:'trailblazer'}}"
+          }
+        }
+      }
+    }
+  }
+}

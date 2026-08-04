@@ -1,0 +1,54 @@
+diff --git a/client/src/main.rs b/client/src/main.rs
+index e910a4b..f4675c2 100644
+--- a/client/src/main.rs
++++ b/client/src/main.rs
+@@ -15,0 +16 @@ use azalea::{
++        game::s_player_action::{Action as PlayerAction, ServerboundPlayerAction},
+@@ -250,0 +252,13 @@ fn execute(client: &Client, request: Request) -> Result<(Value, bool)> {
++        "start_use_item" => {
++            client.start_use_item();
++            Value::Null
++        }
++        "release_use_item" => {
++            client.write_packet(ServerboundPlayerAction {
++                action: PlayerAction::ReleaseUseItem,
++                pos: BlockPos::new(0, 0, 0),
++                direction: Direction::Down,
++                seq: 0,
++            });
++            Value::Null
++        }
+@@ -334,8 +348,12 @@ fn snapshot(client: &Client) -> Value {
+-            ItemStack::Present(item) => json!({
+-                "slot": slot,
+-                "name": item.kind.to_str().strip_prefix("minecraft:").unwrap_or(item.kind.to_str()),
+-                "item": item.kind.to_string(),
+-                "type": item.kind as u32,
+-                "count": item.count,
+-                "components": item.component_patch,
+-            }),
++            ItemStack::Present(item) => {
++                let components = serde_json::to_value(&item.component_patch)
++                    .unwrap_or_else(|_| Value::String(format!("{:?}", item.component_patch)));
++                json!({
++                    "slot": slot,
++                    "name": item.kind.to_str().strip_prefix("minecraft:").unwrap_or(item.kind.to_str()),
++                    "item": item.kind.to_string(),
++                    "type": item.kind as u32,
++                    "count": item.count,
++                    "components": components,
++                })
++            },
+diff --git a/src/client.ts b/src/client.ts
+index 77a6c4d..f10c269 100644
+--- a/src/client.ts
++++ b/src/client.ts
+@@ -195,0 +196,8 @@ export class ProtocolClient {
++  public async startUseItem(): Promise<void> {
++    await this.request("start_use_item");
++  }
++
++  public async releaseUseItem(): Promise<void> {
++    await this.request("release_use_item");
++  }
++

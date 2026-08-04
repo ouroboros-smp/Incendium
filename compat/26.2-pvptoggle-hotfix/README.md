@@ -36,8 +36,31 @@ projectiles for player combat and uses explicitly filtered, owner-attributed
 damage with the original `fireworks`/magic damage type for custom effects,
 while retaining non-damaging particle bursts for the original visuals.
 
-Install this directory as a separate world datapack after Incendium. It is an
-override-only compatibility addon and does not contain the Incendium pack.
+For datapack-only testing, install this directory as a separate world datapack
+after Incendium. It is an override-only compatibility addon and does not
+contain the Incendium pack.
+
+For the production Legacy mod, assemble the reviewed override files into the
+exact upstream 26.2 / 5.5.0 jar with `build-legacy-jar.ps1`. The script accepts
+only the base jar with SHA256
+`1626bcced55d5baa3a9c7c3526c830880cbd828bd8793a3cfc60f713479fcc34`, copies
+only this addon's `data/` tree, stamps Fabric version
+`5.5.0+ouroboros.rangedhotfix.1`, verifies every override byte-for-byte, rejects
+duplicate entries, and runs `jar --validate`.
+
+```powershell
+pwsh ./build-legacy-jar.ps1 `
+  -BaseJar "C:\path\to\Incendium_Legacy_26.2_5.5.0.jar" `
+  -OutputJar "C:\path\to\Incendium_Legacy_26.2_5.5.0-ouroboros-ranged-hotfix.1.jar"
+```
+
+The expected output SHA256 is
+`194020e5674afbc46e4ec3d061268e9a003a96fd2675bccd893f1f7809fd0dda`.
+Deploy that jar as the only active Incendium jar. Keep the original base jar
+outside the active `mods/` directory as the rollback artifact, and keep the
+standalone hotfix datapack disabled while the merged jar is active. To roll
+back, stop the server, remove the hotfix jar from `mods/`, restore the base jar,
+and start the server.
 
 Run the static checks with:
 
@@ -45,8 +68,9 @@ Run the static checks with:
 node ./test.mjs
 ```
 
-Run the reproducible real-client matrix against primordial-staging with a clean
-Ouroboros test harness checkout at `origin/main`. The bundled patch adds the two
+Run the reproducible real-client matrix against primordial-staging with the
+Ouroboros test harness pinned to commit
+`ce208c3733979929f26adaedf9e583e64f0dc975`. The bundled patch adds the two
 protocol actions needed to draw and release bows/crossbows:
 
 ```powershell
@@ -55,8 +79,9 @@ $harnessRepo = "K:\ouroboros-smp\test-harness"
 $harnessTask = & "C:\Users\rawnr\.agent-stack\scripts\new-managed-worktree.ps1" `
   -Repository $harnessRepo `
   -Branch "codex/incendium-ranged-hotfix-verification" `
-  -StartPoint origin/main
+  -StartPoint ce208c3733979929f26adaedf9e583e64f0dc975
 $env:OURO_HARNESS_ROOT = $harnessTask.Worktree
+git -C $env:OURO_HARNESS_ROOT apply --check --unidiff-zero "$hotfixRoot\test-harness.patch"
 git -C $env:OURO_HARNESS_ROOT apply --unidiff-zero "$hotfixRoot\test-harness.patch"
 npm --prefix $env:OURO_HARNESS_ROOT ci
 npm --prefix $env:OURO_HARNESS_ROOT run build

@@ -42,6 +42,11 @@ Get-ChildItem -LiteralPath $dataRoot -File -Recurse | ForEach-Object {
 Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
+$temporaryPath = Join-Path $outputDirectory (
+    ".{0}.{1}.incoming" -f [IO.Path]::GetFileName($outputPath), [Guid]::NewGuid().ToString("N")
+)
+
+try {
 $source = [IO.Compression.ZipFile]::OpenRead($basePath)
 try {
     $sourceEntries = [Collections.Generic.Dictionary[string, IO.Compression.ZipArchiveEntry]]::new([StringComparer]::Ordinal)
@@ -55,7 +60,7 @@ try {
     $entryNames = @($sourceEntries.Keys) + @($overrides.Keys) |
         Sort-Object -Unique -CaseSensitive
 
-    $destination = [IO.Compression.ZipFile]::Open($outputPath, [IO.Compression.ZipArchiveMode]::Create)
+    $destination = [IO.Compression.ZipFile]::Open($temporaryPath, [IO.Compression.ZipArchiveMode]::Create)
     try {
         foreach ($entryName in $entryNames) {
             $destinationEntry = $destination.CreateEntry($entryName, [IO.Compression.CompressionLevel]::Optimal)
@@ -125,17 +130,11 @@ try {
         $destination.Dispose()
     }
 }
-catch {
-    if ([IO.File]::Exists($outputPath)) {
-        [IO.File]::Delete($outputPath)
-    }
-    throw
-}
 finally {
     $source.Dispose()
 }
 
-$built = [IO.Compression.ZipFile]::OpenRead($outputPath)
+$built = [IO.Compression.ZipFile]::OpenRead($temporaryPath)
 try {
     $builtNames = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     foreach ($entry in $built.Entries) {
@@ -171,14 +170,22 @@ finally {
     $built.Dispose()
 }
 
-& jar --validate --file $outputPath
+& jar --validate --file $temporaryPath
 if ($LASTEXITCODE -ne 0) {
     throw "jar --validate failed with exit code $LASTEXITCODE"
 }
 
-$outputSha256 = (Get-FileHash -LiteralPath $outputPath -Algorithm SHA256).Hash.ToLowerInvariant()
+$outputSha256 = (Get-FileHash -LiteralPath $temporaryPath -Algorithm SHA256).Hash.ToLowerInvariant()
 if ($outputSha256 -ne $expectedOutputSha256) {
     throw "Unexpected output jar SHA256: $outputSha256 (expected $expectedOutputSha256)"
+}
+
+[IO.File]::Move($temporaryPath, $outputPath)
+}
+finally {
+    if ([IO.File]::Exists($temporaryPath)) {
+        [IO.File]::Delete($temporaryPath)
+    }
 }
 
 [pscustomobject]@{
